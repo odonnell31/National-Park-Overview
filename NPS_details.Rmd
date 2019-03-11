@@ -1,0 +1,141 @@
+---
+title: "NPS_Details"
+author: "ODONNELL"
+date: "March 4, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+First, import needed libraries
+```{r}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(stringr)
+```
+
+Now, load the data into a dataframe
+And, view the first few rows
+```{r}
+NPS_details <- read_csv("NPS_details_V2.csv")
+head(NPS_details)
+```
+
+Now, check the dims and data types in the dataframe
+```{r}
+dim(NPS_details)
+str(NPS_details)
+```
+
+Delete the unneeded columns
+```{r}
+NPS_details <- subset(NPS_details, select = -c(Keywords, Recreation,
+                                               Flora, Fauna,
+                                               Description))
+```
+
+
+Change one of the column names..
+```{r}
+colnames(NPS_details)[colnames(NPS_details)=="National Park"] <- "National_Park"
+```
+
+```{r}
+NPS_details$All_Keywords <- tolower(NPS_details$All_Keywords)
+```
+
+
+Define keywords to go with recreational activities/attractions
+```{r}
+mountain_keywords <- c("mountain", "mountains")
+ocean_keywords <- c("ocean", "coastline")
+hiking_keywords <- c("hiking", "hike", "trails", "trailheads")
+large_animal_keywords <- c("bears", "moose")
+large_trees_keywords <- c("redwood", "redwoods", "giant sequoia", "douglas fur")
+desert_keywords <- c("desert")
+camping_keywords <- c("camping", "campers")
+lake_keywords <- c("lake")
+```
+
+Create columns in the dataframe associated with
+some attractions of national parks
+```{r}
+NPS_details$mountains <- 0
+NPS_details$ocean <- 0
+NPS_details$lake <- 0
+NPS_details$desert <- 0
+NPS_details$large_trees <- 0
+NPS_details$hiking <- 0
+NPS_details$camping <- 0
+NPS_details$large_animals <- 0
+```
+
+Populate the columns just created above
+```{r}
+NPS_details$mountains <- str_detect(NPS_details$All_Keywords, mountain_keywords)
+NPS_details$ocean <- str_detect(NPS_details$All_Keywords, ocean_keywords)
+NPS_details$lake <- str_detect(NPS_details$All_Keywords, lake_keywords)
+NPS_details$desert <- str_detect(NPS_details$All_Keywords, desert_keywords)
+NPS_details$large_trees <- str_detect(NPS_details$All_Keywords, large_trees_keywords)
+NPS_details$hiking <- str_detect(NPS_details$All_Keywords, hiking_keywords)
+NPS_details$camping <- str_detect(NPS_details$All_Keywords, camping_keywords)
+NPS_details$large_animals <- str_detect(NPS_details$All_Keywords, large_animal_keywords)
+```
+
+tidy the dataset
+```{r}
+#NPS_details[NPS_details==TRUE] <- colnames(NPS_details)[which(NPS_details==TRUE, arr.ind=TRUE)[,'col']]
+#NPS_details[NPS_details==FALSE] <- colnames(NPS_details)[which(NPS_details==FALSE, arr.ind=FALSE)[,'col']]
+#NPS_details <- gather(NPS_details, key = "Features", value = "n", 5:7)
+```
+
+Now, to analyze the dataset
+Lets start by finding the frequency of best season
+```{r}
+NPS_details %>%
+  group_by(Best_Season) %>%
+  summarise(Count = n()) %>%
+  arrange(desc(Count))
+```
+
+Now that we know Summer has the most parks in the best season
+lets filter for summer and check for parks with camping!
+```{r}
+filter(NPS_details, camping == "TRUE") %>%
+  group_by(National_Park, State) %>%
+  summarise(mountains) %>%
+  arrange(desc(mountains))
+```
+
+And lastly, lets see which state is best for summer camping
+at a National Park
+```{r}
+filter(NPS_details, camping == "TRUE") %>%
+  group_by(State) %>%
+  summarise(Count = n()) %>%
+  arrange(desc(Count))
+```
+
+Lastly, export as a CSV
+```{r}
+write.csv(NPS_details, "NPS_Details_Tidy.csv")
+```
+
+File Summary:
+
+1. Imported the data
+2. Deleted unneeded columns and added new columns
+3. Used Stringr to go through wikipedia descriptions of each
+National Park and pick out national park attractions
+4. Used the new columns to group and summarise
+National Parks and States to analyze them by Best Season
+5. Learned that California is the best state to camp in
+a National Park during the Summer
+6. Exported the file as a CSV
+
+3. Grouped and Summarised the data with Tidyr to analyze data by National Park and by State
+4. Cleaned the "Description" column to only display the first sentance (of wikipedia description)
+5. Subsetted the data and exported as a nice CSV

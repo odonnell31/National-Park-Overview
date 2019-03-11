@@ -1,0 +1,126 @@
+---
+title: "NPS_Summary"
+author: "ODONNELL"
+date: "March 3, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+First, import needed libraries
+```{r}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(stringr)
+```
+
+Now, load the data into a dataframe
+And, view the first few rows
+```{r}
+NPS_summary <- read_csv("NPS_Summary.csv")
+NPS_summary$Description <- enc2utf8(NPS_summary$Description)
+head(NPS_summary)
+```
+
+Now, check the dims and data types in the dataframe
+```{r}
+dim(NPS_summary)
+str(NPS_summary)
+```
+
+Change one of the column names..
+```{r}
+colnames(NPS_summary)
+colnames(NPS_summary)[colnames(NPS_summary)=="National Park"] <- "National_Park"
+```
+
+Lets add a columnn to show visitation increase %
+```{r}
+NPS_summary <- mutate(NPS_summary, Visitation_Increase = ((Visitors_2017-(rowMeans(NPS_summary[c(11:18)])))/(rowMeans(NPS_summary[c(11:18)])))*100)
+```
+
+OK, now lets see an overview of parks on the rise
+caviat, parks with at least  1 Million visitors in 2017
+```{r}
+filter(NPS_summary, Visitors_2017 > 1000000) %>%
+  group_by(National_Park, Visitation_Increase) %>%
+  summarise(Visitors_Rank) %>%
+  arrange(desc(Visitation_Increase))
+```
+
+And also, lets check how many national parks are in each state.
+```{r}
+NPS_summary %>%
+  group_by(State) %>%
+  summarise(NPs = n()) %>%
+  arrange(desc(NPs))
+```
+
+And how about number of national park land (acres) by state!
+```{r}
+NPS_summary %>%
+  group_by(State) %>%
+  summarise(Land = sum(Acres)) %>%
+  arrange(desc(Land))
+```
+
+To see which parks had highest tent campers per visitor by park
+```{r}
+NPS_summary %>%
+  group_by(National_Park, State, Tent_Campers_2017) %>%
+  summarise(TentCamp_Percentage = Tent_Campers_2017/Visitors_2017) %>%
+  arrange(desc(TentCamp_Percentage))
+```
+
+To see which parks had highest campers:visitors by state
+```{r}
+NPS_summary %>%
+  group_by(State, Tent_Campers_2017) %>%
+  summarise(TentCamp_Percentage = sum(Tent_Campers_2017)/sum(Visitors_2017)) %>%
+  arrange(desc(TentCamp_Percentage))
+```
+
+To see which state has the most National Parks Visitors in 2017
+```{r}
+NPS_summary %>%
+  group_by(State) %>%
+  summarise(total_visitors = sum(Visitors_2017)) %>%
+  arrange(desc(total_visitors))
+```
+
+Which state has the highest National Park quality rating?
+```{r}
+
+NPS_summary %>%
+  group_by(State) %>%
+  summarise(NP_quality_score = mean(Quality_Rating)) %>%
+  arrange(desc(NP_quality_score))
+```
+
+Let's shorten the Description column
+to only the first sentance.
+```{r}
+NPS_summary$Desc <- str_extract(NPS_summary$Description, "((?<![[:space:]])[[:upper:]]).{20,}(?=\\.)")
+```
+
+Ok, lastly lets clean up the file to export as a CSV
+```{r}
+NPS_summary <- subset(NPS_summary, select = -c(Visitors_2009, Visitors_2010,
+                                               Visitors_2011, Visitors_2012,
+                                               Visitors_2013, Visitors_2014,
+                                               Visitors_2015, Visitors_2016,
+                                               Description))
+
+write.csv(NPS_summary, "NPS_Summary_Tidy.csv")
+```
+
+File Summary:
+
+1. Imported the data
+2. Created ("Mutated") a column to display "Visitation Increase %"
+3. Grouped and Summarised the data with Tidyr to analyze data by National Park and by State
+4. Cleaned the "Description" column to only display the first sentance (of wikipedia description)
+5. Subsetted the data and exported as a nice CSV

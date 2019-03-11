@@ -1,0 +1,168 @@
+---
+title: "NPS POI's"
+author: "ODONNELL"
+date: "March 4, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+First, import needed libraries
+```{r}
+library(readr)
+library(tidyr)
+library(dplyr)
+library(stringr)
+```
+
+Now, load the data into a dataframe
+And, view the first few rows
+```{r}
+NPS_POIs <- read_csv("NPS_POIs_V2.csv")
+head(NPS_POIs)
+```
+
+Now, check the dims and data types in the dataframe
+```{r}
+dim(NPS_POIs)
+str(NPS_POIs)
+```
+
+OK, there's quite a few columns we do not need
+Therefore, let's remove them
+```{r}
+NPS_POIs <- subset(NPS_POIs, select = -c(POISTATUS, PUBLICDISPLAY,
+                                         DATAACCESS, ACCESSNOTES,
+                                         ORIGINATOR, UNITTYPE,
+                                         GROUPCODE, GROUPNAME,
+                                         MAPMETHOD, MAPSOURCE,
+                                         SOURCEDATE, XYACCURACY,
+                                         GEOMETRYID, FEATUREID,
+                                         FACLOCID, FACASSETID,
+                                         IMLOCID, OBSERVABLE,
+                                         ALTLANGNAME, ALTLANG,
+                                         StagingTable, POIALTNAME))
+```
+
+Much easier to read now
+To continue improvement, lets rename some columns
+```{r}
+colnames(NPS_POIs)[colnames(NPS_POIs)=="X"] <- "Longitude"
+colnames(NPS_POIs)[colnames(NPS_POIs)=="Y"] <- "Latitude"
+colnames(NPS_POIs)[colnames(NPS_POIs)=="POITYPE"] <- "POI_Type"
+colnames(NPS_POIs)[colnames(NPS_POIs)=="UNITNAME"] <- "National_Park"
+colnames(NPS_POIs)[colnames(NPS_POIs)=="SEASDESC"] <- "Seasonal_Desc"
+colnames(NPS_POIs)
+```
+
+Alright, so which National Parks do we have in this dataset?
+```{r}
+unique(NPS_POIs$National_Park)
+```
+
+Now, what type of POI's are in this dataset?
+```{r}
+unique(NPS_POIs$POI_Type)
+```
+
+Cool! lets find the most popular POI's
+```{r}
+NPS_POIs %>%
+  group_by(POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N))
+```
+
+Neat! Alright lets summarize POI's by National Park!
+```{r}
+NPS_POIs %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(National_Park, desc(N))
+```
+
+OK to keep digging, lets only look at POI_types related to hiking!
+```{r}
+filter(NPS_POIs, POI_Type %in% c("Trailhead",
+                                 "")) %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N))
+```
+
+To get a different picture, lets combine anything that
+relates to hiking
+```{r}
+filter(NPS_POIs, POI_Type %in% c("Trailhead",
+                                 "Trail Access",
+                                 "Trail Marker")) %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N)) %>%
+  spread(POI_Type, N) %>%
+  mutate(Hiking_POIs = sum(Trailhead, `Trail Marker`, `Trail Access`))
+```
+
+Alright, let's do the same for camping!
+This is getting interesting.
+```{r}
+filter(NPS_POIs, POI_Type %in% c("Campsite")) %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N))
+```
+
+And lastly for visitor centers,
+to get a sense of size
+```{r}
+filter(NPS_POIs, POI_Type %in% c("Visitor Center")) %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(N = sort(table(POI_Type))) %>%
+  arrange(desc(N))
+```
+
+Maybe we can make some interesting conclusions by region.
+```{r}
+unique(NPS_POIs$REGIONCODE)
+```
+
+First lets just list all POI_Types
+```{r}
+NPS_POIs %>%
+  group_by(REGIONCODE, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N))
+```
+
+Now, lets just look at camping and hiking POIs
+```{r}
+filter(NPS_POIs, POI_Type %in% c("Campsite", "Trailhead")) %>%
+  group_by(REGIONCODE, POI_Type) %>%
+  summarise(N = n()) %>%
+  arrange(desc(N))
+```
+
+After analysis, I only want the following dataframe
+```{r}
+NPS_POIs <- NPS_POIs %>%
+  group_by(National_Park, POI_Type) %>%
+  summarise(Count = n()) %>%
+  arrange(National_Park)
+```
+
+
+Lastly, export the file as a CSV
+```{r}
+write.csv(NPS_POIs, "NPS_POIs_Tidy.csv")
+```
+
+File summary:
+
+1. Imported the data from a CSV
+2. Subsetted the data to remove unneeded columns
+3. Renamed columns to make analysis easier
+4. Grouped and Summarised (with tidyr) the data to analyze the Points of Inerest at many levels
+5. Made conclusions about POI's and National Parks
+6. Subsetting the data for the most important infomation I found and exported as a CSV!
